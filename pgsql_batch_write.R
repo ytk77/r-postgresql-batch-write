@@ -9,7 +9,7 @@ fnc_init_Postgre_conn <- function()
     
     drv <- dbDriver("PostgreSQL")
     conn <- dbConnect(drv,
-                      host = dbcnf$host, port = dfcnf$port,
+                      host = dbcnf$host, port = df=dbcnf$port,
                       user = dbcnf$user, password = dbcnf$password,
                       dbname = dbcnf$dbname)
     
@@ -29,11 +29,11 @@ pgsql.write.table <- function(tbl_name, DAT, keys)
     if (!dbExistsTable(conn, tbl_name)) {  ## save to a new table
         dbWriteTable(conn, tbl_name, D2)
         ## alter table to add primary key
-        qstr = paste('ALTER TABLE', tbl_name, 'ADD PRIMARY KEY ("pkey")')
+        qstr = paste0('ALTER TABLE "', tbl_name, '" ADD PRIMARY KEY ("pkey")')
         res <- dbSendQuery(conn, qstr)
     } else {
         ## exclude existing records in DB
-        qstr <- paste0("SELECT pkey FROM ", tbl_name)
+        qstr <- paste0('SELECT pkey FROM "', tbl_name, '"')
         res <- dbSendQuery(conn, qstr)
         R1 <- fetch(res, n=-1)
         D3 <- D2 %>% anti_join(R1)
