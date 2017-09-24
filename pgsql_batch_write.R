@@ -17,27 +17,36 @@ fnc_init_Postgre_conn <- function()
 }
 
 
-pgsql.write.table <- function(tbl_name, DAT, keys)
+pgsql.write.table.per.rec <- function(tbl_name, DAT, keys)
 {
+    tbl_name = tolower(tbl_name)
+    names(DAT) = tolower(  names(DAT) )
     conn = fnc_init_Postgre_conn()
     
-    ## generate hash value from primary keys
-    qstr <- paste0("D2 <- DAT %>% dplyr::mutate(pkey = paste0(",
-                   paste(keys, collapse = ", '_', "), ") )")
-    eval( parse(text = qstr))
-
     if (!dbExistsTable(conn, tbl_name)) {  ## save to a new table
-        dbWriteTable(conn, tbl_name, D2)
+        d2 = head(DAT, 1)
+        dbWriteTable(conn, tbl_name, d2)
         ## alter table to add primary key
-        qstr = paste0('ALTER TABLE "', tbl_name, '" ADD PRIMARY KEY ("pkey")')
+        qstr = paste0('ALTER TABLE ', tbl_name, ' ADD PRIMARY KEY (',
+                      paste0(keys, collapse=','), ')')
         res <- dbSendQuery(conn, qstr)
+        
+        D3 <- DAT[2:nrow(DAT), ]
+        try( dbWriteTable(conn, tbl_name, D3, append=TRUE) )
+        
     } else {
-        ## exclude existing records in DB
-        qstr <- paste0('SELECT pkey FROM "', tbl_name, '"')
-        res <- dbSendQuery(conn, qstr)
-        R1 <- fetch(res, n=-1)
-        D3 <- D2 %>% anti_join(R1)
-        dbWriteTable(conn, tbl_name, D3, append=TRUE)
+        ## try write all first
+        r1 = try( dbWriteTable(conn, tbl_name, DAT, append=TRUE) )
+        ## if error, write records one by one
+        if (class(r1)=="try-error") {
+            # write to table per record
+            for (ii in 1:nrow(DAT))
+            {
+                d3 <- DAT[ii, ]
+                try( dbWriteTable(conn, tbl_name, d3, append=TRUE) )
+            }
+        }
+        
     }
     
     dbDisconnect(conn)
